@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 from typing import IO, Optional, Tuple, List, Dict
 import struct
-from pe_parser.errors import MagicSignatureError
+from  pe_parser.engine.errors import MagicSignatureError
+import logging
 
 
 @dataclass
@@ -60,7 +61,6 @@ class OptionalHeader:
 @dataclass
 class SectionHeader:
     Name: bytes  # 8s
-    # PhysicalAddress: int  # I
     VirtualSize: int  # I
     VirtualAddress: int  # I
     SizeOfRawData: int  # I
@@ -81,11 +81,12 @@ class ImportDescriptor:
     FirstThunk: int  # I
 
 
-class Parser:
+class PEParser:
     HEADERS = {
         'DOS_HEADER': (64, '<H7LI'),
         'IMAGE_FILE_HEADER': (20, '<2H3I2H'),
-        'OPTIONAL_HEADER': (96, '<H2B9I6H4I2H6I'),  # HBBIIIIIIIIIHHHHHHIIIIHHIIIIII
+        # HBBIIIIIIIIIHHHHHHIIIIHHIIIIII
+        'OPTIONAL_HEADER': (96, '<H2B9I6H4I2H6I'),
         'SECTION_HEADER': (40, '<8s6I2HI'),
         'IMPORT_DESCRIPTOR': (20, '<5I')
     }
@@ -118,6 +119,7 @@ class Parser:
         self.file_obj.seek(60)
         e_lfanew = self.unpack_bytes(4, '<I')[0]
         self.dos_header = DOSHeader(e_magic, e_lfanew)
+        logging.debug(msg='Read DOSHeader')
 
     def read_file_header(self):
         self.file_obj.seek(self.dos_header.e_lfanew)
@@ -127,6 +129,7 @@ class Parser:
         self.file_header = FileHeader(pe_magic,
                                       *self.unpack_bytes(
                                           *self.HEADERS['IMAGE_FILE_HEADER']))
+        logging.debug(msg='Read FileHeader')
 
     def read_optional_header(self):
         self.optional_header = OptionalHeader(
@@ -142,6 +145,7 @@ class Parser:
             self.optional_header.DataDirectory = data_directories
         else:
             self.file_obj.seek(self.file_header.SizeOfOptionalHeader - 96, 1)
+        logging.debug('Read OptionalHeader')
 
     def read_sections(self):
         for _ in range(self.file_header.NumberOfSections):
@@ -149,10 +153,9 @@ class Parser:
                 *self.HEADERS['SECTION_HEADER']
             ))
             self.sections[section.Name] = section
+        logging.debug('Read sections')
 
     def read_import(self):
-        # print(self.sections.get(b'.idata\x00\x00', None))
-        # print(self.sections.keys())
         pass
 
     def parse(self):
@@ -161,11 +164,4 @@ class Parser:
             self.read_dos_header()
             self.read_file_header()
             self.read_optional_header()
-            print(self.optional_header)
             self.read_sections()
-            # self.read_import()
-
-
-if __name__ == '__main__':
-    parser = Parser('OfficeSetup.exe')
-    parser.parse()
