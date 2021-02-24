@@ -53,9 +53,17 @@ def read_pe_header(f, e_lfanew):
     characteristics = struct.unpack('H', f.read(ImageFileHeaderOffsets.Characteristics))[0]
     image_file_header = ImageFileHeader(machine, number_of_sections, time_date_stump, pointer_to_sym_table,
                                         number_of_symbols, size_of_optional_header, characteristics)
-    print(image_file_header)
+    return image_file_header
+
+def read_optional_header(f, size: int):
+    optional_header_raw = f.read(size)
+    pointer = 0
+    magic = struct.unpack('H', optional_header_raw[pointer:2])[0]
+
+    print(magic)
 
 
 with open(filename, 'rb') as f:
     pe_start = read_dos_header(f)
-    read_pe_header(f, pe_start)
+    image_file_header = read_pe_header(f, pe_start)
+    read_optional_header(f, image_file_header.SizeOfOptionalHeader)
