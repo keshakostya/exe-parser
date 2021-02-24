@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import IO, Optional, Tuple, List
 import struct
 
@@ -17,44 +17,60 @@ class ImageFileHeader:
 
 @dataclass
 class OptionalHeader:
-    Magic: int
-    MajorLinkerVersion: int
-    MinorLinkerVersion: int
-    SizeOfCode: int
-    SizeOfInitializedData: int
-    SizeOfUninitializedData: int
-    AddressOfEntryPoint: int
-    BaseOfCode: int
-    BaseOfData: int
-    ImageBase: int
-    SectionAlignment: int
-    FileAlignment: int
-    MajorOperatingSystemVersion: int
-    MinorOperatingSystemVersion: int
-    MajorImageVersion: int
-    MinorImageVersion: int
-    MajorSubsystemVersion: int
-    MinorSubsystemVersion: int
-    Win32VersionValue: int
-    SizeOfImage: int
-    SizeOfHeaders: int
-    CheckSum: int
-    Subsystem: int
-    DllCharacteristics: int
-    SizeOfStackReserve: int
-    SizeOfStackCommit: int
-    SizeOfHeapReserve: int
-    SizeOfHeapCommit: int
-    LoaderFlags: int
-    NumberOfRvaAndSizes: int
-    DataDirectory: List[Tuple[int, int]]
+    Magic: int  # H
+    MajorLinkerVersion: int  # B
+    MinorLinkerVersion: int  # B
+    SizeOfCode: int  # I
+    SizeOfInitializedData: int  # I
+    SizeOfUninitializedData: int  # I
+    AddressOfEntryPoint: int  # I
+    BaseOfCode: int  # I
+    BaseOfData: int  # I
+    ImageBase: int  # I
+    SectionAlignment: int  # I
+    FileAlignment: int  # I
+    MajorOperatingSystemVersion: int  # H
+    MinorOperatingSystemVersion: int  # H
+    MajorImageVersion: int  # H
+    MinorImageVersion: int  # H
+    MajorSubsystemVersion: int  # H
+    MinorSubsystemVersion: int  # H
+    Win32VersionValue: int  # I
+    SizeOfImage: int  # I
+    SizeOfHeaders: int  # I
+    CheckSum: int  # I
+    Subsystem: int  # H
+    DllCharacteristics: int  # H
+    SizeOfStackReserve: int  # I
+    SizeOfStackCommit: int  # I
+    SizeOfHeapReserve: int  # I
+    SizeOfHeapCommit: int  # I
+    LoaderFlags: int  # I
+    NumberOfRvaAndSizes: int  # I
+    DataDirectory: List[Tuple[int, int]] = field(default_factory=list)  # I I
+
+
+@dataclass
+class SectionHeader:
+    Name: str  # 8s
+    PhysicalAddress: int  # I
+    VirtualSize: int  # I
+    VirtualAddress: int  # I
+    SizeOfRawData: int  # I
+    PointerToRawData: int  # I
+    PointerToRelocations: int  # I
+    PointerToLinenumbers: int  # I
+    NumberOfRelocations: int  # H
+    NumberOfLinenumbers: int  # H
+    Characteristics: int  # I
 
 
 class Parser:
-    #     singletone
     HEADERS = {
         'DOS_HEADER': (64, '<H7LI'),
-        'IMAGE_FILE_HEADER': (20, '<2H3I2H')
+        'IMAGE_FILE_HEADER': (20, '<2H3I2H'),
+        'OPTIONAL_HEADER': (96, '<H2B9I6H4I2H6I'),
+        'SECTION_HEADER': (44, '<8s7I2HI')
     }
 
     FILE_HEADER_SIZES = {
@@ -93,7 +109,24 @@ class Parser:
                                             *self.unpack_bytes(
                                                 *self.HEADERS['IMAGE_FILE_HEADER']))
         print(image_file_header)
+        optional_header = None
         if image_file_header.SizeOfOptionalHeader != 0:
+            optional_header = OptionalHeader(
+                *self.unpack_bytes(
+                    *self.HEADERS['OPTIONAL_HEADER']
+                )
+            )
+            data_directories = []
+            for _ in range(optional_header.NumberOfRvaAndSizes):
+                data_directories.append(self.unpack_bytes(
+                    8, '<II'
+                ))
+            optional_header.DataDirectory = data_directories
+        print(optional_header)
+        section_header = SectionHeader(
+            *self.unpack_bytes(
+                *self.HEADERS['SECTION_HEADER']))
+        print(section_header)
 
     #
     # machine = struct.unpack('<H',
