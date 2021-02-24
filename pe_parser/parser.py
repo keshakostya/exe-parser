@@ -53,7 +53,7 @@ class OptionalHeader:
 @dataclass
 class SectionHeader:
     Name: str  # 8s
-    PhysicalAddress: int  # I
+    # PhysicalAddress: int  # I
     VirtualSize: int  # I
     VirtualAddress: int  # I
     SizeOfRawData: int  # I
@@ -65,12 +65,22 @@ class SectionHeader:
     Characteristics: int  # I
 
 
+@dataclass
+class ImportDescriptor:
+    OriginalFirstThunk: int  # I
+    TimeDateStump: int  # I
+    ForwarderChain: int  # I
+    Name: int  # I
+    FirstThunk: int  # I
+
+
 class Parser:
     HEADERS = {
         'DOS_HEADER': (64, '<H7LI'),
         'IMAGE_FILE_HEADER': (20, '<2H3I2H'),
         'OPTIONAL_HEADER': (96, '<H2B9I6H4I2H6I'),
-        'SECTION_HEADER': (44, '<8s7I2HI')
+        'SECTION_HEADER': (40, '<8s6I2HI'),
+        'IMPORT_DESCRIPTOR': (20, '<5I')
     }
 
     FILE_HEADER_SIZES = {
@@ -99,8 +109,10 @@ class Parser:
         if e_magic != b'MZ':
             raise Exception('FUCK')
         self.file_obj.seek(60)
-        e_lfanew = struct.unpack('<I', self.file_obj.read(4))[0]
-
+        e_lfanew_raw = self.file_obj.read(4)
+        print(e_lfanew_raw)
+        e_lfanew = struct.unpack('<I', e_lfanew_raw)[0]
+        print(e_magic, e_lfanew)
         self.file_obj.seek(e_lfanew)
         pe_magic = self.file_obj.read(self.FILE_HEADER_SIZES['pe_magic'])
         if pe_magic != b'PE\x00\x00':
@@ -117,17 +129,29 @@ class Parser:
                 )
             )
             data_directories = []
-            for _ in range(optional_header.NumberOfRvaAndSizes):
-                data_directories.append(self.unpack_bytes(
-                    8, '<II'
-                ))
-            optional_header.DataDirectory = data_directories
+            if optional_header.NumberOfRvaAndSizes != 0:
+                for _ in range(optional_header.NumberOfRvaAndSizes):
+                    data_directories.append(self.unpack_bytes(
+                        8, '<II'
+                    ))
+                optional_header.DataDirectory = data_directories
+            else:
+                self.file_obj.seek(image_file_header.SizeOfOptionalHeader - 96, 1)
         print(optional_header)
         section_header = SectionHeader(
             *self.unpack_bytes(
                 *self.HEADERS['SECTION_HEADER']))
         print(section_header)
-
+        self.file_obj.seek(section_header.PointerToRawData)
+        raw_data = self.file_obj.read(section_header.SizeOfRawData)
+        print(raw_data.hex())
+        hex_data = raw_data.hex()
+        print(hex_data)
+        with open('a.txt', 'w') as f:
+            for i in range(0, section_header.SizeOfRawData, 2):
+                if i == 200:
+                    break
+                f.write(f'{hex_data[i].upper()}{hex_data[i + 1].upper()} ')
     #
     # machine = struct.unpack('<H',
     #                         self.file_obj.read(
@@ -142,5 +166,5 @@ class Parser:
 
 
 if __name__ == '__main__':
-    parser = Parser('OfficeSetup.exe')
+    parser = Parser('hello.exe')
     parser.parse()
