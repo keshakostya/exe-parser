@@ -85,7 +85,7 @@ class Parser:
     HEADERS = {
         'DOS_HEADER': (64, '<H7LI'),
         'IMAGE_FILE_HEADER': (20, '<2H3I2H'),
-        'OPTIONAL_HEADER': (96, '<H2B9I6H4I2H6I'),
+        'OPTIONAL_HEADER': (96, '<H2B9I6H4I2H6I'),  # HBBIIIIIIIIIHHHHHHIIIIHHIIIIII
         'SECTION_HEADER': (40, '<8s6I2HI'),
         'IMPORT_DESCRIPTOR': (20, '<5I')
     }
@@ -150,11 +150,20 @@ class Parser:
             ))
             self.sections[section.Name] = section
 
+    def read_import(self):
+        # print(self.sections.get(b'.idata\x00\x00', None))
+        # print(self.sections.keys())
+        pass
+
     def parse(self):
         with open(self.file_name, 'rb') as f:
             self.file_obj = f
             self.read_dos_header()
             self.read_file_header()
+            self.read_optional_header()
+            print(self.optional_header)
+            self.read_sections()
+            # self.read_import()
 
 
 if __name__ == '__main__':
