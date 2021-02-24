@@ -1,10 +1,17 @@
 from dataclasses import dataclass, field
-from typing import IO, Optional, Tuple, List
+from typing import IO, Optional, Tuple, List, Dict
 import struct
+from pe_parser.errors import MagicSignatureError
 
 
 @dataclass
-class ImageFileHeader:
+class DOSHeader:
+    e_magic: bytes
+    e_lfanew: int
+
+
+@dataclass
+class FileHeader:
     PEMagic: bytes
     Machine: int
     NumberOfSections: int
@@ -52,7 +59,7 @@ class OptionalHeader:
 
 @dataclass
 class SectionHeader:
-    Name: str  # 8s
+    Name: bytes  # 8s
     # PhysicalAddress: int  # I
     VirtualSize: int  # I
     VirtualAddress: int  # I
@@ -83,88 +90,73 @@ class Parser:
         'IMPORT_DESCRIPTOR': (20, '<5I')
     }
 
-    FILE_HEADER_SIZES = {
-        'e_magic': 2,
-        'dos_stuff': 60,
-        'e_lfanew': 4,
-        'pe_magic': 4,
-        'machine': 2,
-        'number_of_sections': 2,
-        'time_date_stamp': 4,
-        'pointer_to_symbol_table': 4,
-        'number_of_symbols': 4,
-        'size_of_optional_header': 2,
-        'characteristics': 2
-    }
-
     def __init__(self, file_name: str):
         self.file_name: str = file_name
         self.file_obj: Optional[IO] = None
+        self.dos_header: Optional[DOSHeader] = None
+        self.file_header: Optional[FileHeader] = None
+        self.optional_header: Optional[OptionalHeader] = None
+        self.sections: Dict[bytes, SectionHeader] = {}
 
-    def unpack_bytes(self, size: int, struct_format: str):
+    def clear(self):
+        self.file_name = ''
+        if not self.file_obj.closed:
+            self.file_obj.close()
+        self.file_obj = None
+        self.dos_header = None
+        self.file_header = None
+        self.optional_header = None
+        self.sections.clear()
+
+    def unpack_bytes(self, size: int, struct_format: str) -> Tuple[int, ...]:
         return struct.unpack(struct_format, self.file_obj.read(size))
 
-    def read_file_header(self):
-        e_magic = self.file_obj.read(self.FILE_HEADER_SIZES['e_magic'])
+    def read_dos_header(self):
+        e_magic = self.file_obj.read(2)
         if e_magic != b'MZ':
-            raise Exception('FUCK')
+            raise MagicSignatureError('MZ')
         self.file_obj.seek(60)
-        e_lfanew_raw = self.file_obj.read(4)
-        print(e_lfanew_raw)
-        e_lfanew = struct.unpack('<I', e_lfanew_raw)[0]
-        print(e_magic, e_lfanew)
-        self.file_obj.seek(e_lfanew)
-        pe_magic = self.file_obj.read(self.FILE_HEADER_SIZES['pe_magic'])
+        e_lfanew = self.unpack_bytes(4, '<I')[0]
+        self.dos_header = DOSHeader(e_magic, e_lfanew)
+
+    def read_file_header(self):
+        self.file_obj.seek(self.dos_header.e_lfanew)
+        pe_magic = self.file_obj.read(4)
         if pe_magic != b'PE\x00\x00':
-            raise Exception('FUCK_2')
-        image_file_header = ImageFileHeader(pe_magic,
-                                            *self.unpack_bytes(
-                                                *self.HEADERS['IMAGE_FILE_HEADER']))
-        print(image_file_header)
-        optional_header = None
-        if image_file_header.SizeOfOptionalHeader != 0:
-            optional_header = OptionalHeader(
-                *self.unpack_bytes(
-                    *self.HEADERS['OPTIONAL_HEADER']
-                )
-            )
-            data_directories = []
-            if optional_header.NumberOfRvaAndSizes != 0:
-                for _ in range(optional_header.NumberOfRvaAndSizes):
-                    data_directories.append(self.unpack_bytes(
-                        8, '<II'
-                    ))
-                optional_header.DataDirectory = data_directories
-            else:
-                self.file_obj.seek(image_file_header.SizeOfOptionalHeader - 96, 1)
-        print(optional_header)
-        section_header = SectionHeader(
+            raise MagicSignatureError('PE')
+        self.file_header = FileHeader(pe_magic,
+                                      *self.unpack_bytes(
+                                          *self.HEADERS['IMAGE_FILE_HEADER']))
+
+    def read_optional_header(self):
+        self.optional_header = OptionalHeader(
             *self.unpack_bytes(
-                *self.HEADERS['SECTION_HEADER']))
-        print(section_header)
-        self.file_obj.seek(section_header.PointerToRawData)
-        raw_data = self.file_obj.read(section_header.SizeOfRawData)
-        print(raw_data.hex())
-        hex_data = raw_data.hex()
-        print(hex_data)
-        with open('a.txt', 'w') as f:
-            for i in range(0, section_header.SizeOfRawData, 2):
-                if i == 200:
-                    break
-                f.write(f'{hex_data[i].upper()}{hex_data[i + 1].upper()} ')
-    #
-    # machine = struct.unpack('<H',
-    #                         self.file_obj.read(
-    #                             self.FILE_HEADER_SIZES['machine']))[0]
-    # number_of_sections = struct.unpack('<H',
-    #                                    self.file_obj.read())
+                *self.HEADERS['OPTIONAL_HEADER']
+            ))
+        data_directories = []
+        if self.optional_header.NumberOfRvaAndSizes != 0:
+            for _ in range(self.optional_header.NumberOfRvaAndSizes):
+                data_directories.append(self.unpack_bytes(
+                    8, '<II'
+                ))
+            self.optional_header.DataDirectory = data_directories
+        else:
+            self.file_obj.seek(self.file_header.SizeOfOptionalHeader - 96, 1)
+
+    def read_sections(self):
+        for _ in range(self.file_header.NumberOfSections):
+            section = SectionHeader(*self.unpack_bytes(
+                *self.HEADERS['SECTION_HEADER']
+            ))
+            self.sections[section.Name] = section
 
     def parse(self):
         with open(self.file_name, 'rb') as f:
             self.file_obj = f
+            self.read_dos_header()
             self.read_file_header()
 
 
 if __name__ == '__main__':
-    parser = Parser('hello.exe')
+    parser = Parser('OfficeSetup.exe')
     parser.parse()
