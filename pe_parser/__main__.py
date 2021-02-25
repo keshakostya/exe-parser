@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 import logging
-from pe_parser.engine.parser import PEParser
+from pe_parser.engine.pparser import PEParser
 
 
 def parse_args():
@@ -18,3 +18,8 @@ if __name__ == '__main__':
                         format='%(levelname)s - %(message)s')
     parser = PEParser(args['file'])
     parser.parse()
+    print(parser.file_header)
+    print(parser.optional_header_standard)
+    print(parser.optional_header_windows_specific)
+    for d in parser.optional_header_data_directories:
+        print(d)
