@@ -79,8 +79,11 @@ class SectionHeader:
 
 @dataclass
 class ImportDescriptor:
-    OriginalFirstThunk: int  # I
+    original_first_thunk: int  # I
     time_date_stamp: int  # I
     forwarder_chain: int  # I
     name: int  # I
     first_thunk: int  # I
+
+    def is_null(self) -> bool:
+        return all(value == 0 for value in self.__dict__.values())

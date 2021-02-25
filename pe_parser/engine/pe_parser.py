@@ -125,15 +125,19 @@ class PEParser:
         x = []
         # for _ in range(0, self.sections[import_section_name].size_of_raw_data,
         #                20):
-        e = ImportDescriptor(
-            *self.unpack_bytes(*self.FORMATS['IMPORT_DESCRIPTOR']))
-        # print(x)
+        while True:
+            e = ImportDescriptor(
+                *self.unpack_bytes(*self.FORMATS['IMPORT_DESCRIPTOR']))
+            if e.is_null():
+                break
+            x.append(e)
+        print(x)
         # for e in x:
-        offset = self.sections[import_section_name].pointer_to_raw_data + \
-                 (e.name - self.sections[
-                     import_section_name].virtual_address)
-        self.file_obj.seek(offset)
-        print(self.unpack_bytes(12, '12s')[0])
+        # offset = self.sections[import_section_name].pointer_to_raw_data + \
+        #          (e.name - self.sections[
+        #              import_section_name].virtual_address)
+        # self.file_obj.seek(offset)
+        # print(self.unpack_bytes(12, '12s')[0])
         #     print(hex(offset))
 
     def parse(self):

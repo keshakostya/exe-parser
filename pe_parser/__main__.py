@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 import logging
-from pe_parser.engine.pparser import PEParser
+from pe_parser.engine.pe_parser import PEParser
 
 
 def parse_args():
