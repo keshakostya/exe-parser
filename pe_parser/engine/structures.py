@@ -75,3 +75,12 @@ class SectionHeader:
     number_of_relocations: int  # H
     number_of_linenumbers: int  # H
     characteristics: int  # I
+
+
+@dataclass
+class ImportDescriptor:
+    OriginalFirstThunk: int  # I
+    time_date_stamp: int  # I
+    forwarder_chain: int  # I
+    name: int  # I
+    first_thunk: int  # I

@@ -4,12 +4,13 @@ from dataclasses import dataclass, field
 from typing import List, Optional, IO, Tuple, Dict
 
 from pe_parser.engine.errors import MagicSignatureError
-from pe_parser.engine.structures import DOSHeader, FileHeader, OptionalHeaderStandard, OptionalHeaderWindowsSpecific, \
-    DataDirectory, SectionHeader
+from pe_parser.engine.structures import DOSHeader, FileHeader, \
+    OptionalHeaderStandard, OptionalHeaderWindowsSpecific, \
+    DataDirectory, SectionHeader, ImportDescriptor
 
 
 class PEParser:
-    HEADERS_FORMATS = {
+    FORMATS = {
         # 'DOS_HEADER': (64, '<H7LI'),
         'IMAGE_FILE_HEADER': (20, '<2H3I2H'),
         'OPTIONAL_HEADER_STANDARD': {
@@ -66,7 +67,7 @@ class PEParser:
             raise MagicSignatureError('PE')
         self.file_header = FileHeader(pe_magic,
                                       *self.unpack_bytes(
-                                          *self.HEADERS_FORMATS['IMAGE_FILE_HEADER']))
+                                          *self.FORMATS['IMAGE_FILE_HEADER']))
         logging.debug(msg='Read FileHeader')
 
     def read_optional_header(self):
@@ -83,29 +84,57 @@ class PEParser:
         self.optional_header_windows_specific = OptionalHeaderWindowsSpecific(
             *self.read_optional_header_windows_specific()
         )
-        for _ in range(self.optional_header_windows_specific.number_of_rva_and_sizes):
-            self.optional_header_data_directories.append(DataDirectory(*self.unpack_bytes(
-                *self.HEADERS_FORMATS['DATA_DIRECTORY']
-            )))
+        for _ in range(
+                self.optional_header_windows_specific.number_of_rva_and_sizes):
+            self.optional_header_data_directories.append(
+                DataDirectory(*self.unpack_bytes(
+                    *self.FORMATS['DATA_DIRECTORY']
+                )))
         logging.debug('Read OptionalHeader')
 
     def read_optional_header_standard(self):
         return self.unpack_bytes(
-            *self.HEADERS_FORMATS['OPTIONAL_HEADER_STANDARD'][self.pe_format]
+            *self.FORMATS['OPTIONAL_HEADER_STANDARD'][self.pe_format]
         )
 
     def read_optional_header_windows_specific(self):
         return self.unpack_bytes(
-            *self.HEADERS_FORMATS['OPTIONAL_HEADER_WINDOWS_SPECIFIC'][self.pe_format]
+            *self.FORMATS['OPTIONAL_HEADER_WINDOWS_SPECIFIC'][self.pe_format]
         )
 
     def read_sections(self):
         for _ in range(self.file_header.number_of_sections):
             section = SectionHeader(*self.unpack_bytes(
-                *self.HEADERS_FORMATS['SECTION_HEADER']
+                *self.FORMATS['SECTION_HEADER']
             ))
             self.sections[section.name] = section
         logging.debug('Read sections')
+
+    def define_import_section(self):
+        import_data_directory = self.optional_header_data_directories[1]
+        import_section_name = b''
+        for section in self.sections.values():
+            if section.virtual_address <= import_data_directory.virtual_address \
+                    <= section.virtual_address + section.virtual_size:
+                import_section_name = section.name
+                break
+        offset = self.sections[import_section_name].pointer_to_raw_data + \
+                 (import_data_directory.virtual_address -
+                  self.sections[import_section_name].virtual_address)
+        self.file_obj.seek(offset)
+        x = []
+        # for _ in range(0, self.sections[import_section_name].size_of_raw_data,
+        #                20):
+        e = ImportDescriptor(
+            *self.unpack_bytes(*self.FORMATS['IMPORT_DESCRIPTOR']))
+        # print(x)
+        # for e in x:
+        offset = self.sections[import_section_name].pointer_to_raw_data + \
+                 (e.name - self.sections[
+                     import_section_name].virtual_address)
+        self.file_obj.seek(offset)
+        print(self.unpack_bytes(12, '12s')[0])
+        #     print(hex(offset))
 
     def parse(self):
         with open(self.file_name, 'rb') as f:
@@ -114,3 +143,4 @@ class PEParser:
             self.read_file_header()
             self.read_optional_header()
             self.read_sections()
+            self.define_import_section()
