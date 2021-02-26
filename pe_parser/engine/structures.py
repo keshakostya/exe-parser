@@ -1,6 +1,5 @@
 """"""
 
-
 from dataclasses import dataclass
 
 
@@ -26,6 +25,9 @@ class FileHeader:
 class DataDirectory:
     virtual_address: int  # I
     size: int  # I
+
+    def is_empty(self):
+        return not (self.virtual_address or self.size)
 
 
 @dataclass
@@ -68,7 +70,7 @@ class OptionalHeaderWindowsSpecific:
 
 @dataclass
 class SectionHeader:
-    name: bytes  # 8s
+    name: bytes  # 8s char[8]
     virtual_size: int  # I
     virtual_address: int  # I
     size_of_raw_data: int  # I

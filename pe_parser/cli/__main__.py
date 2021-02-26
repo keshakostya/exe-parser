@@ -22,7 +22,4 @@ if __name__ == '__main__':
     try:
         parser.parse()
     except PEParseException as e:
-        print(e.message)
-    # print(field_to_str(parser.file_header))
-    for s in parser.imported_dlls:
-        print(s)
+        logging.error(e.message)

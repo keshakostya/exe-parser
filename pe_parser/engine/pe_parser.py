@@ -12,7 +12,7 @@ from pe_parser.engine.structures import DOSHeader, FileHeader, \
 class PEParser:
     """PE format parser class"""
 
-    HEADERS_FORMATS = {
+    FORMATS = {
         # 'DOS_HEADER': (64, '<H7LI'),
         'IMAGE_FILE_HEADER': (20, '<2H3I2H'),
         'OPTIONAL_HEADER_STANDARD': {
@@ -69,9 +69,9 @@ class PEParser:
         pe_magic = self.file_obj.read(4)
         if pe_magic != b'PE\x00\x00':
             raise MagicSignatureError('PE')
-        self.file_header = FileHeader(pe_magic,
-                                      *self.unpack_bytes(
-                                          *self.HEADERS_FORMATS['IMAGE_FILE_HEADER']))
+        self.file_header = FileHeader(
+            pe_magic,
+            *self.unpack_bytes(*self.FORMATS['IMAGE_FILE_HEADER']))
         logging.debug(msg='Read FileHeader')
 
     def read_optional_header(self):
@@ -88,35 +88,36 @@ class PEParser:
         self.optional_header_windows_specific = OptionalHeaderWindowsSpecific(
             *self.read_optional_header_windows_specific()
         )
+        logging.debug('Read OptionalHeader')
         for _ in range(
                 self.optional_header_windows_specific.number_of_rva_and_sizes):
             self.optional_header_data_directories.append(
                 DataDirectory(*self.unpack_bytes(
-                    *self.HEADERS_FORMATS['DATA_DIRECTORY']
+                    *self.FORMATS['DATA_DIRECTORY']
                 )))
-        logging.debug('Read OptionalHeader')
+        logging.debug('Read data directories')
 
     def read_optional_header_standard(self):
         return self.unpack_bytes(
-            *self.HEADERS_FORMATS['OPTIONAL_HEADER_STANDARD'][self.pe_format]
+            *self.FORMATS['OPTIONAL_HEADER_STANDARD'][self.pe_format]
         )
 
     def read_optional_header_windows_specific(self):
         return self.unpack_bytes(
-            *self.HEADERS_FORMATS['OPTIONAL_HEADER_WINDOWS_SPECIFIC'][self.pe_format]
+            *self.FORMATS['OPTIONAL_HEADER_WINDOWS_SPECIFIC'][self.pe_format]
         )
 
     def read_sections(self):
         for _ in range(self.file_header.number_of_sections):
             section = SectionHeader(*self.unpack_bytes(
-                *self.HEADERS_FORMATS['SECTION_HEADER']
+                *self.FORMATS['SECTION_HEADER']
             ))
             self.sections[section.name] = section
         logging.debug('Read sections')
 
-    def ream_imported_dlls(self):
-        if len(self.optional_header_data_directories) < 2:
-            self.imported_dlls = []
+    def read_imported_dlls(self):
+        if len(self.optional_header_data_directories) < 2 or \
+                self.optional_header_data_directories[1].is_empty():
             return
         import_data_directory = self.optional_header_data_directories[1]
         import_section_name = b''
@@ -133,7 +134,7 @@ class PEParser:
         import_descriptors = []
         while True:
             import_descriptor = ImportDescriptor(*self.unpack_bytes(
-                *self.HEADERS_FORMATS['IMPORT_DESCRIPTOR']))
+                *self.FORMATS['IMPORT_DESCRIPTOR']))
             if import_descriptor.is_null():
                 break
             import_descriptors.append(import_descriptor)
@@ -150,6 +151,13 @@ class PEParser:
             dll_name = b''.join(chars).decode(encoding='ascii')
             self.imported_dlls.append(dll_name)
 
+    def read_text_raw_data(self):
+        code_section = self.sections[b'.text\x00\x00\x00']
+        offset = code_section.pointer_to_raw_data
+        self.file_obj.seek(offset)
+        raw_code = self.file_obj.read(code_section.size_of_raw_data)
+        print(raw_code)
+
     def parse(self):
         try:
             self._parse()
@@ -165,4 +173,4 @@ class PEParser:
             self.read_file_header()
             self.read_optional_header()
             self.read_sections()
-            self.ream_imported_dlls()
+            self.read_imported_dlls()
