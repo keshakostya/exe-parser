@@ -131,12 +131,17 @@ class PEParser:
             if e.is_null():
                 break
             x.append(e)
-        print(x)
-        # for e in x:
-        # offset = self.sections[import_section_name].pointer_to_raw_data + \
-        #          (e.name - self.sections[
-        #              import_section_name].virtual_address)
-        # self.file_obj.seek(offset)
+        for e in x:
+            offset = self.sections[import_section_name].pointer_to_raw_data + \
+                 (e.name - self.sections[import_section_name].virtual_address)
+            self.file_obj.seek(offset)
+            name = []
+            while True:
+                char = self.file_obj.read(1)
+                if char == b'\x00':
+                    break
+                name.append(char)
+            print(b''.join(name).decode(encoding='ascii'))
         # print(self.unpack_bytes(12, '12s')[0])
         #     print(hex(offset))
 
