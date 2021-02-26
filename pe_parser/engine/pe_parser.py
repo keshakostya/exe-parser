@@ -37,6 +37,7 @@ class PEParser:
             Optional[OptionalHeaderWindowsSpecific] = None
         self.optional_header_data_directories: List[DataDirectory] = []
         self.sections: Dict[bytes, SectionHeader] = {}
+        self.imported_dlls: [str, Dict] = {}
 
     def clear(self):
         self.file_name = ''
@@ -47,6 +48,7 @@ class PEParser:
         self.dos_header = None
         self.file_header = None
         self.sections.clear()
+        self.imported_dlls.clear()
 
     def unpack_bytes(self, size: int, struct_format: str) -> Tuple[int, ...]:
         return struct.unpack(struct_format, self.file_obj.read(size))
@@ -110,7 +112,10 @@ class PEParser:
             self.sections[section.name] = section
         logging.debug('Read sections')
 
-    def define_import_section(self):
+    def ream_imported_dlls(self):
+        if len(self.optional_header_data_directories) < 2:
+            self.imported_dlls = {}
+            return
         import_data_directory = self.optional_header_data_directories[1]
         import_section_name = b''
         for section in self.sections.values():
@@ -118,32 +123,30 @@ class PEParser:
                     <= section.virtual_address + section.virtual_size:
                 import_section_name = section.name
                 break
-        offset = self.sections[import_section_name].pointer_to_raw_data + \
+        import_section = self.sections[import_section_name]
+        offset = import_section.pointer_to_raw_data + \
                  (import_data_directory.virtual_address -
-                  self.sections[import_section_name].virtual_address)
+                  import_section.virtual_address)
         self.file_obj.seek(offset)
-        x = []
-        # for _ in range(0, self.sections[import_section_name].size_of_raw_data,
-        #                20):
+        import_descriptors = []
         while True:
-            e = ImportDescriptor(
-                *self.unpack_bytes(*self.FORMATS['IMPORT_DESCRIPTOR']))
-            if e.is_null():
+            import_descriptor = ImportDescriptor(*self.unpack_bytes(
+                *self.FORMATS['IMPORT_DESCRIPTOR']))
+            if import_descriptor.is_null():
                 break
-            x.append(e)
-        for e in x:
-            offset = self.sections[import_section_name].pointer_to_raw_data + \
-                 (e.name - self.sections[import_section_name].virtual_address)
+            import_descriptors.append(import_descriptor)
+        for import_descriptor in import_descriptors:
+            offset = import_section.pointer_to_raw_data + \
+                     (import_descriptor.name - import_section.virtual_address)
             self.file_obj.seek(offset)
-            name = []
+            chars = []
             while True:
                 char = self.file_obj.read(1)
                 if char == b'\x00':
                     break
-                name.append(char)
-            print(b''.join(name).decode(encoding='ascii'))
-        # print(self.unpack_bytes(12, '12s')[0])
-        #     print(hex(offset))
+                chars.append(char)
+            dll_name = b''.join(chars).decode(encoding='ascii')
+            self.imported_dlls[dll_name] = {}
 
     def parse(self):
         with open(self.file_name, 'rb') as f:
@@ -152,4 +155,4 @@ class PEParser:
             self.read_file_header()
             self.read_optional_header()
             self.read_sections()
-            self.define_import_section()
+            self.ream_imported_dlls()
