@@ -1,9 +1,9 @@
 import logging
 import struct
-from dataclasses import dataclass, field
 from typing import List, Optional, IO, Tuple, Dict
 
-from pe_parser.engine.errors import MagicSignatureError
+from pe_parser.engine.errors import MagicSignatureError, UnpackingError, \
+    FileReadingError
 from pe_parser.engine.structures import DOSHeader, FileHeader, \
     OptionalHeaderStandard, OptionalHeaderWindowsSpecific, \
     DataDirectory, SectionHeader, ImportDescriptor
@@ -125,8 +125,8 @@ class PEParser:
                 break
         import_section = self.sections[import_section_name]
         offset = import_section.pointer_to_raw_data + \
-                 (import_data_directory.virtual_address -
-                  import_section.virtual_address)
+            (import_data_directory.virtual_address -
+             import_section.virtual_address)
         self.file_obj.seek(offset)
         import_descriptors = []
         while True:
@@ -149,6 +149,14 @@ class PEParser:
             self.imported_dlls[dll_name] = {}
 
     def parse(self):
+        try:
+            self._parse()
+        except struct.error as e:
+            raise UnpackingError(e)
+        except (ValueError, FileNotFoundError) as e:
+            raise FileReadingError(str(e))
+
+    def _parse(self):
         with open(self.file_name, 'rb') as f:
             self.file_obj = f
             self.read_dos_header()

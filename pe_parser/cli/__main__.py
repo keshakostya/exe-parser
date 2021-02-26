@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 import logging
 from pe_parser.engine.pe_parser import PEParser
+from pe_parser.engine.errors import PEParseException
 from pe_parser.cli.formatter import field_to_str
 
 
@@ -18,7 +19,10 @@ if __name__ == '__main__':
     logging.basicConfig(level=log_level,
                         format='%(levelname)s - %(message)s')
     parser = PEParser(args['file'])
-    parser.parse()
+    try:
+        parser.parse()
+    except PEParseException as e:
+        print(e.message)
     # print(field_to_str(parser.file_header))
     for s in parser.imported_dlls:
         print(s)
