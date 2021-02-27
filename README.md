@@ -1,6 +1,6 @@
 # Парсер .exe файлов
 ## Описание
-Парсер .exe файлов, написан на языке Python версии 3.7
+Парсер .exe файлов
 ## Установка
 ```bash
 git clone repo
@@ -11,18 +11,9 @@ python setup.py
 
 Консольный режим
 ```bash
-python -m pe_parse.cli file.exe
-# Вывод заголовков и разной другой информации
+python -m pe_parser.cli file.exe
 ```
 
 Помощь
 ```bash
 python -m pe_parser -h
-```
-
-Запуск тестов
-```bash
-python -m pytest
-```
-## Автор
-Аня Мартиросян, матмех
