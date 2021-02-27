@@ -174,3 +174,33 @@ class PEParser:
             self.read_optional_header()
             self.read_sections()
             self.read_imported_dlls()
+
+    def generate_info_dict(self):
+        info_dict = {
+            'File name': self.file_name,
+            'PE format': self.pe_format,
+            'DOS header': self.pe_file_block_to_dict(self.dos_header),
+            'File header': self.pe_file_block_to_dict(self.file_header),
+            'Optional header standard': self.pe_file_block_to_dict(
+                self.optional_header_standard
+            ),
+            'Optional header windows specific': self.pe_file_block_to_dict(
+                self.optional_header_windows_specific), 'Sections': [
+                self.pe_file_block_to_dict(section) for section in
+                self.sections
+            ],
+            'Imported dlls': self.imported_dlls}
+        return info_dict
+
+    def pe_file_block_to_dict(self, field) -> Dict[str, str]:
+        block_dict = {}
+        for name, value in field.__dict__.items():
+            pretty_name = name.replace('_', ' ')
+            if isinstance(int, value):
+                pretty_value = f'0x{hex(value).upper()}'
+            elif isinstance(bytes, value):
+                pretty_value = value.rstrip(b'\x00').decode(encoding='utf-8')
+            else:
+                pretty_value = str(value)
+            block_dict[pretty_name] = pretty_value
+        return block_dict

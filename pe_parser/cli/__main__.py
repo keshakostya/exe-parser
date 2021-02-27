@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 import logging
 from pe_parser.engine.pe_parser import PEParser
 from pe_parser.engine.errors import PEParseException
-from pe_parser.cli.formatter import field_to_str
+from pe_parser.cli.printer import field_to_str
 
 
 def parse_args():
