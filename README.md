@@ -4,7 +4,7 @@
 ## Установка
 ```bash
 git clone repo
-python setup.py
+pip install .
 ```
 
 ## Запуск
