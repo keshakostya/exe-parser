@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 import logging
 from pe_parser.engine.pe_parser import PEParser
 from pe_parser.engine.errors import PEParseException
-from pe_parser.cli.printer import field_to_str
+from pe_parser.cli.printer import Printer
 
 
 def parse_args():
@@ -23,3 +23,5 @@ if __name__ == '__main__':
         parser.parse()
     except PEParseException as e:
         logging.error(e.message)
+    printer = Printer()
+    printer.print_pretty(parser.generate_info_dict())

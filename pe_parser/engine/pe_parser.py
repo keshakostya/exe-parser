@@ -179,26 +179,28 @@ class PEParser:
         info_dict = {
             'File name': self.file_name,
             'PE format': self.pe_format,
-            'DOS header': self.pe_file_block_to_dict(self.dos_header),
-            'File header': self.pe_file_block_to_dict(self.file_header),
-            'Optional header standard': self.pe_file_block_to_dict(
+            'DOS header': self.pe_file_block_to_pretty_dict(self.dos_header),
+            'File header': self.pe_file_block_to_pretty_dict(self.file_header),
+            'Optional header standard': self.pe_file_block_to_pretty_dict(
                 self.optional_header_standard
             ),
-            'Optional header windows specific': self.pe_file_block_to_dict(
-                self.optional_header_windows_specific), 'Sections': [
-                self.pe_file_block_to_dict(section) for section in
-                self.sections
+            'Optional header windows specific':
+                self.pe_file_block_to_pretty_dict(
+                    self.optional_header_windows_specific),
+            'Sections': [
+                self.pe_file_block_to_pretty_dict(section) for section in
+                self.sections.values()
             ],
             'Imported dlls': self.imported_dlls}
         return info_dict
 
-    def pe_file_block_to_dict(self, field) -> Dict[str, str]:
+    def pe_file_block_to_pretty_dict(self, field) -> Dict[str, str]:
         block_dict = {}
         for name, value in field.__dict__.items():
             pretty_name = name.replace('_', ' ')
-            if isinstance(int, value):
+            if isinstance(value, int):
                 pretty_value = f'0x{hex(value).upper()}'
-            elif isinstance(bytes, value):
+            elif isinstance(value, bytes):
                 pretty_value = value.rstrip(b'\x00').decode(encoding='utf-8')
             else:
                 pretty_value = str(value)

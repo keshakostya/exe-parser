@@ -1,13 +1,20 @@
-from colorama import init, Fore
-from pe_parser.engine.pe_parser import PEParser
+from typing import Dict
 
 
 class Printer:
 
-    def print_pretty(self, pe_parser: PEParser):
-        parser_results = pe_parser.generate_info_dict()
-        for name in parser_results:
-            print(Fore.GREEN, name)
-            if isinstance(parser_results[name], str):
-                print(Fore.YELLOW, f'\t{parser_results[name]}')
-            elif isinstance(parser_results[name], dict)
+    def print_pretty(self, data: Dict, ident=0):
+        for key, value in data.items():
+            if isinstance(value, dict):
+                print('\t' * (ident) + key)
+                self.print_pretty(value, ident + 1)
+            elif isinstance(value, list):
+                print('\t' * (ident) + key)
+                for item in value:
+                    if isinstance(item, dict):
+                        self.print_pretty(item, ident + 1)
+                    else:
+                        print('\t' * (ident + 1) + item)
+            else:
+                print('\t' * (ident) + key + ': ' + value)
+        print()
