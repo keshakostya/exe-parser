@@ -23,5 +23,6 @@ if __name__ == '__main__':
         parser.parse()
     except PEParseException as e:
         logging.error(e.message)
+        exit(1)
     printer = Printer()
     printer.print_pretty(parser.generate_info_dict())
