@@ -3,7 +3,7 @@ from typing import Dict
 
 class Printer:
 
-    def print_pretty(self, data: Dict, ident=0):
+    def print_pretty(self, data: Dict, ident: int = 0):
         for key, value in data.items():
             if isinstance(value, dict):
                 print('\t' * ident + key)
