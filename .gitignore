@@ -4,3 +4,5 @@ __pycache__
 exe_examples
 .pytest_cache
 .coverage
+*.txt
+fix.py

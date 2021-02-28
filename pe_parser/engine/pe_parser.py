@@ -194,7 +194,7 @@ class PEParser:
         for name, value in field.__dict__.items():
             pretty_name = name.replace('_', ' ')
             if isinstance(value, int):
-                pretty_value = hex(value).upper()
+                pretty_value = hex(value)
             elif isinstance(value, bytes):
                 pretty_value = value.rstrip(b'\x00').decode(encoding='utf-8')
             else:
