@@ -5,7 +5,7 @@
 
 ## Установка
 ```bash
-git clone repo
+git clone https://github.com/keshakostya/exe-parser.git
 pip install .
 ```
 
