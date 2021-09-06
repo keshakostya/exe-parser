@@ -13,16 +13,15 @@ def parse_args():
     return argument_parser.parse_args().__dict__
 
 
-if __name__ == '__main__':
-    args = parse_args()
-    log_level = logging.DEBUG if args['DEBUG'] else logging.INFO
-    logging.basicConfig(level=log_level,
-                        format='%(levelname)s - %(message)s')
-    parser = PEParser(args['file'])
-    try:
-        parser.parse()
-    except PEParseException as e:
-        logging.error(e.message)
-        exit(1)
-    printer = Printer()
-    printer.print_pretty(parser.generate_info_dict())
+args = parse_args()
+log_level = logging.DEBUG if args['DEBUG'] else logging.INFO
+logging.basicConfig(level=log_level,
+                    format='%(levelname)s - %(message)s')
+parser = PEParser(args['file'])
+try:
+    parser.parse()
+except PEParseException as e:
+    logging.error(e.message)
+    exit(1)
+printer = Printer()
+printer.print_pretty(parser.generate_info_dict())
